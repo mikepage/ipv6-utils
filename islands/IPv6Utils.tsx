@@ -16,6 +16,7 @@ export default function IPv6Utils() {
     error?: string;
   } | null>(null);
   const convertError = useSignal<string | null>(null);
+  const isLoadingMyIPv6 = useSignal(false);
 
   const handleConvert = () => {
     convertError.value = null;
@@ -69,6 +70,26 @@ export default function IPv6Utils() {
     ipv6Address.value = "2001:db8::1";
     prefixLength.value = "64";
     cidrRange.value = "2001:db8::/32";
+  };
+
+  const handleUseMyIPv6 = async () => {
+    isLoadingMyIPv6.value = true;
+    convertError.value = null;
+
+    try {
+      const response = await fetch("/api/my-ipv6");
+      const data = await response.json();
+
+      if (data.success && data.address) {
+        ipv6Address.value = data.address;
+      } else {
+        convertError.value = data.error || "No IPv6 address found";
+      }
+    } catch {
+      convertError.value = "Failed to fetch IPv6 address";
+    } finally {
+      isLoadingMyIPv6.value = false;
+    }
   };
 
   return (
@@ -155,6 +176,13 @@ export default function IPv6Utils() {
             class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
           >
             Load Sample
+          </button>
+          <button
+            onClick={handleUseMyIPv6}
+            disabled={isLoadingMyIPv6.value}
+            class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+          >
+            {isLoadingMyIPv6.value ? "Loading..." : "Use My IPv6"}
           </button>
         </div>
       </div>

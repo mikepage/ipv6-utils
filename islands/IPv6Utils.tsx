@@ -150,7 +150,7 @@ export default function IPv6Utils() {
             disabled={!ipv6Address.value.trim()}
             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
-            Convert IPv6 to Address
+            Convert IPv6 to CIDR
           </button>
           <button
             onClick={handleCIDRCheck}

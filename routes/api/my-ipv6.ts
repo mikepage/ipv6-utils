@@ -23,14 +23,18 @@ function isIPv6(address: string): boolean {
 }
 
 // Extract the best IPv6 from a list of IPs
-function extractBestIPv6(ips: string[]): string | null {
+function extractBestIPv6(ips: string[]): { address: string | null; allFound: string[] } {
   const globalAddresses: string[] = [];
   const otherAddresses: string[] = [];
+  const allFound: string[] = [];
 
   for (const ip of ips) {
     const addr = ip.trim();
 
     if (!isIPv6(addr)) continue;
+
+    allFound.push(addr);
+
     if (isLinkLocalOrLoopback(addr)) continue;
     if (isULA(addr)) continue;
 
@@ -42,7 +46,10 @@ function extractBestIPv6(ips: string[]): string | null {
   }
 
   const allValid = [...globalAddresses, ...otherAddresses];
-  return allValid.length > 0 ? allValid[0] : null;
+  return {
+    address: allValid.length > 0 ? allValid[0] : null,
+    allFound
+  };
 }
 
 export const handler = define.handlers({
@@ -67,25 +74,29 @@ export const handler = define.handlers({
     if (realIp) candidates.push(realIp.trim());
 
     // Try to get the best IPv6 from headers
-    let address = extractBestIPv6(candidates);
+    let result = extractBestIPv6(candidates);
+    let source = "client-request";
 
-    // If no valid IPv6 found in headers, try connection info
-    if (!address) {
-      // Fallback: check server's network interfaces (for local development)
+    // If no valid IPv6 found in headers, try server's network interfaces
+    if (!result.address) {
       const interfaces = Deno.networkInterfaces();
       const interfaceIps = interfaces
         .filter((iface) => iface.family === "IPv6")
         .map((iface) => iface.address);
 
-      address = extractBestIPv6(interfaceIps);
+      result = extractBestIPv6(interfaceIps);
+      source = "server-interface";
     }
 
     return new Response(
       JSON.stringify({
-        success: address !== null,
-        address,
-        source: candidates.length > 0 ? "client-request" : "server-interface",
-        error: address === null ? "No global IPv6 address found" : undefined,
+        success: result.address !== null,
+        address: result.address,
+        source,
+        allFound: result.allFound,
+        error: result.address === null
+          ? `No global IPv6 address found. Detected: ${result.allFound.join(", ") || "none"}`
+          : undefined,
       }),
       {
         headers: { "Content-Type": "application/json" },
